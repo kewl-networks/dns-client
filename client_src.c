@@ -84,6 +84,7 @@ struct RES_RECORD
   unsigned char *rdata;
 };
 
+/* query structure */
 typedef struct
 {
   unsigned char *name;
@@ -91,13 +92,14 @@ typedef struct
 } QUERY;
 
 
+/* get dns servers from the resolv.conf file */
 void get_dns_servers()
 {
   FILE *fp;
   char line[200],*p;
   if((fp=fopen("etc/resolv.conf","r"))==NULL)
   {
-    printf("Fialed opening\n");
+    printf("Failed opening\n");
   }
 
   while(fgets(line,200,fp))
@@ -176,8 +178,12 @@ u_char* readName(unsigned char* reader,unsigned char* buffer,int* count)
 }
 
 
+/* converts the hostname to dns format */
 void changeToDnsFormat(unsigned char* dns,unsigned char* host) 
 {
+  /*
+    example: converts www.google.com to 3www6google3com0
+  */
   int lock = 0 , i;
   strcat((char*)host,".");
    
@@ -198,6 +204,7 @@ void changeToDnsFormat(unsigned char* dns,unsigned char* host)
 }
 
 
+/* converts the ip-address to dns format for reverse lookup */
 void changeIPtoDnsFormat(unsigned char* dns,unsigned char* hostip)
 {
   int i, iplen;
@@ -219,6 +226,7 @@ void changeIPtoDnsFormat(unsigned char* dns,unsigned char* hostip)
 }
 
 
+/* gets the host-ip and other records by performing a dns query */
 void getHostByName(unsigned char *host,int query_type)
 {
   int val;
@@ -228,37 +236,40 @@ void getHostByName(unsigned char *host,int query_type)
   
   unsigned char buf[65536],*qname,*reader;
   int i,j,stop,s;
+
   struct sockaddr_in a;
-  struct RES_RECORD answers[20],auth[20],addit[20];
+  struct RES_RECORD answers[20],auth[20],addit[20]; //replies from the DNS server
   struct sockaddr_in dest;
   struct DNS_HEADER *dns=NULL;
   struct QUESTION *qinfo = NULL;
   
   printf("Making the socket ....... \n");
   
-  s=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP); //socket made
+  s=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP);         //socket made
   
   dest.sin_family=AF_INET;
   dest.sin_port=htons(53);
-  dest.sin_addr.s_addr=inet_addr(dns_servers[0]);
+  dest.sin_addr.s_addr=inet_addr(dns_servers[0]);   //dns servers
 
+  // set the dns structure to standard queries
   dns=(struct DNS_HEADER *)&buf;
   dns->id=(unsigned short) htons(getpid());
-  dns->qr=0;
-  dns->opcode=0;
-  dns->aa=0;
-  dns->tc=0;
-  dns->rd=val;
-  dns->ra=0;
+  dns->qr=0;                                        //query
+  dns->opcode=0;                                    //standard query
+  dns->aa=0;                                        //not authoitative
+  dns->tc=0;                                        //not truncated
+  dns->rd=val;                                      //recursion desired
+  dns->ra=0;                                        //recursion not available
   dns->z=0;
   dns->ad=0;
   dns->cd=0;
   dns->rcode=0;
-  dns->q_count=htons(1);
+  dns->q_count=htons(1);                            //only 1 question
   dns->ans_count=0;
   dns->auth_count=0;
   dns->add_count=0;
 
+  //point to query portion in the packet
   qname=(unsigned char*)&buf[sizeof(struct DNS_HEADER)];
 
   if(query_type==T_PTR)
@@ -283,8 +294,8 @@ void getHostByName(unsigned char *host,int query_type)
   printf("Done");
 
 
-  /*receiving the answer */
-  i=sizeof dest;
+  //receiving the answer
+  i = sizeof dest;
   printf("Answer is being Received..... ");
   if(recvfrom(s,(char*)buf,65536,0,(struct sockaddr*)&dest,(socklen_t*)&i)<0)
   {
@@ -295,6 +306,7 @@ void getHostByName(unsigned char *host,int query_type)
 
   dns=(struct DNS_HEADER*) buf;
 
+  //move ahead of the dns header and the query fields
   reader = &buf[sizeof(struct DNS_HEADER) + (strlen((const char*)qname)+1) + sizeof(struct QUESTION)];
 
   printf("\n response contian:");
