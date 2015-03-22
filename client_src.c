@@ -219,8 +219,8 @@ void changeIPtoDnsFormat(unsigned char* dns,unsigned char* hostip)
   }
   revip[i] = '\0';
 
-  strcat(revip, ".inet-addr.arpa");
-  revip[i+15] = '\0';
+  strcat(revip, ".in-addr.arpa");
+  revip[i+13] = '\0';
 
   changeToDnsFormat(dns, revip);
 }
