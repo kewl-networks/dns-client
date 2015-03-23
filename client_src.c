@@ -97,7 +97,7 @@ void get_dns_servers()
 {
   FILE *fp;
   char line[200],*p;
-  if((fp=fopen("etc/resolv.conf","r"))==NULL)
+  /*if((fp=fopen("etc/resolv.conf","r"))==NULL)
   {
     printf("Failed opening\n");
   }
@@ -114,7 +114,7 @@ void get_dns_servers()
       p=strtok(NULL," ");
     }
   } 
-  
+  */
   //strcpy(dns_servers[0],p);   //loopback
   strcpy(dns_servers[0], "8.8.8.8");
   strcpy(dns_servers[1], "8.8.4.4");
@@ -207,21 +207,40 @@ void changeToDnsFormat(unsigned char* dns,unsigned char* host)
 /* converts the ip-address to dns format for reverse lookup */
 void changeIPtoDnsFormat(unsigned char* dns,unsigned char* hostip)
 {
-  int i, iplen;
+  int i, iplen, j, prevDot, counter;
 
   unsigned char revip[100];
 
   iplen = strlen(hostip);
 
-  for(i=0; i<iplen; ++i)
+  prevDot = iplen;
+  counter =0;
+
+  for(i=iplen-1; i>=0; --i)
   {
-      revip[i] = hostip[iplen-i-1];
+    if(i==0)
+    {
+      for( j = i; j<prevDot; ++j)
+      {
+        revip[counter++] = hostip[j]; 
+      } 
+    }
+    else if(hostip[i]=='.')
+    {
+      for( j = i+1; j<prevDot; ++j)
+      {
+        revip[counter++] = hostip[j]; 
+      }
+      revip[counter++]='.';
+      prevDot = i;
+    }
   }
+
   revip[i] = '\0';
+  printf("%s\n", revip);
 
   strcat(revip, ".in-addr.arpa");
-  revip[i+13] = '\0';
-
+  
   changeToDnsFormat(dns, revip);
 }
 
@@ -245,7 +264,7 @@ void getHostByName(unsigned char *host,int query_type)
   
   printf("Making the socket ....... \n");
   
-  s=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP);         //socket made
+  s = socket(AF_INET , SOCK_DGRAM , IPPROTO_UDP);      //socket made
   
   dest.sin_family=AF_INET;
   dest.sin_port=htons(53);
